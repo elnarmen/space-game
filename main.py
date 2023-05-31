@@ -2,13 +2,11 @@ import time
 import curses
 import asyncio
 import random
-from itertools import cycle
 
-from animation import draw_frame, read_controls
+from animation import draw_frame, read_controls, get_frame_size
 
 
 TIC_TIMEOUT = 0.1
-BLINK_AMOUNT = 4
 
 
 def load_frame_from_file(filename):
@@ -40,19 +38,42 @@ async def blink(canvas, row, column, symbol='*', displacement=10):
 
 
 async def animate_spaceship(canvas, row, column, frames: tuple):
+    field_height, field_width = canvas.getmaxyx()
+    frame_height, frame_width = get_frame_size(frames[0])
+    left_frame_border = column - frame_width // 2
+    bottom_frame_border = row - frame_height // 2
+    field_border = 1
+
     while True:
         for frame in frames:
-            draw_frame(canvas, row, column, frame)
+            row_direction, column_direction, _ = read_controls(canvas)
+            left_frame_border += column_direction
+            bottom_frame_border += row_direction
+
+            right_frame_border = left_frame_border + frame_width
+            upper_frame_border = bottom_frame_border + frame_height
+
+            left_frame_border = min(right_frame_border,
+                                    field_width - field_border) - frame_width
+            bottom_frame_border = min(upper_frame_border,
+                                      field_height - field_border) - frame_height
+
+            left_frame_border = max(left_frame_border, field_border)
+            bottom_frame_border = max(bottom_frame_border, field_border)
+
+            draw_frame(canvas, bottom_frame_border, left_frame_border, frame)
             canvas.refresh()
             for _ in range(2):
                 await asyncio.sleep(0)
-            draw_frame(canvas, row, column, frame, negative=True)
-        row_direction, column_direction, space_pressed = read_controls(canvas)
-        row += row_direction
-        column += column_direction
+            draw_frame(
+                canvas, bottom_frame_border,
+                left_frame_border, frame, negative=True
+            )
 
 
-async def fire(canvas, start_row, start_column, rows_speed=-0.3, columns_speed=0):
+async def fire(
+        canvas, start_row, start_column, rows_speed=-0.3, columns_speed=0
+):
     """Display animation of gun shot, direction and speed can be specified."""
 
     row, column = start_row, start_column
@@ -91,8 +112,8 @@ def draw(canvas):
     start_row, start_column = 1, 1
     end_row = rows_number - 2
     end_column = columns_number - 2
-    row_center = int(end_row / 2)
-    column_center = int(end_column / 2)
+    row_center = end_row // 2
+    column_center = end_column // 2
 
     rocket_frame_1 = load_frame_from_file('animations/rocket_frame_1.txt')
     rocket_frame_2 = load_frame_from_file('animations/rocket_frame_2.txt')
@@ -103,8 +124,7 @@ def draw(canvas):
             row_center,
             column_center,
             (rocket_frame_1, rocket_frame_2)
-        )
-        # fire(canvas, row_center, column_center)
+        ),
     ]
 
     for _ in range(100):
@@ -119,7 +139,6 @@ def draw(canvas):
         )
 
     while True:
-        # for _ in range(BLINK_AMOUNT):
         for coroutine in coroutines.copy():
             try:
                 coroutine.send(None)
