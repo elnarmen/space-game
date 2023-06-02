@@ -2,6 +2,7 @@ import time
 import curses
 import asyncio
 import random
+from itertools import cycle
 
 from animation import draw_frame, read_controls, get_frame_size
 
@@ -39,36 +40,36 @@ async def blink(canvas, row, column, symbol='*', displacement=10):
 
 async def animate_spaceship(canvas, row, column, frames: tuple):
     field_height, field_width = canvas.getmaxyx()
-    frame_height, frame_width = get_frame_size(frames[0])
+    rocket_frame_1, rocket_frame_2 = frames
+    frame_height, frame_width = get_frame_size(rocket_frame_1)
     left_frame_border = column - frame_width // 2
     bottom_frame_border = row - frame_height // 2
     field_border = 1
 
-    while True:
-        for frame in frames:
-            row_direction, column_direction, _ = read_controls(canvas)
-            left_frame_border += column_direction
-            bottom_frame_border += row_direction
+    rocket_animation_frames = cycle([rocket_frame_1, rocket_frame_1, rocket_frame_2, rocket_frame_2])
 
-            right_frame_border = left_frame_border + frame_width
-            upper_frame_border = bottom_frame_border + frame_height
+    for frame in rocket_animation_frames:
+        row_direction, column_direction, _ = read_controls(canvas)
+        left_frame_border += column_direction
+        bottom_frame_border += row_direction
 
-            left_frame_border = min(right_frame_border,
-                                    field_width - field_border) - frame_width
-            bottom_frame_border = min(upper_frame_border,
-                                      field_height - field_border) - frame_height
+        right_frame_border = left_frame_border + frame_width
+        upper_frame_border = bottom_frame_border + frame_height
 
-            left_frame_border = max(left_frame_border, field_border)
-            bottom_frame_border = max(bottom_frame_border, field_border)
+        left_frame_border = min(right_frame_border,
+                                field_width - field_border) - frame_width
+        bottom_frame_border = min(upper_frame_border,
+                                  field_height - field_border) - frame_height
 
-            draw_frame(canvas, bottom_frame_border, left_frame_border, frame)
-            canvas.refresh()
-            for _ in range(2):
-                await asyncio.sleep(0)
-            draw_frame(
-                canvas, bottom_frame_border,
-                left_frame_border, frame, negative=True
-            )
+        left_frame_border = max(left_frame_border, field_border)
+        bottom_frame_border = max(bottom_frame_border, field_border)
+
+        draw_frame(canvas, bottom_frame_border, left_frame_border, frame)
+        await asyncio.sleep(0)
+        draw_frame(
+            canvas, bottom_frame_border,
+            left_frame_border, frame, negative=True
+        )
 
 
 async def fire(
