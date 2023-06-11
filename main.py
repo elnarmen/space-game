@@ -104,6 +104,22 @@ async def fire(
         column += columns_speed
 
 
+async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
+    """Animate garbage, flying from top to bottom. Сolumn position will stay same, as specified on start."""
+    rows_number, columns_number = canvas.getmaxyx()
+
+    column = max(column, 0)
+    column = min(column, columns_number - 1)
+
+    row = 0
+
+    while row < rows_number:
+        draw_frame(canvas, row, column, garbage_frame)
+        await asyncio.sleep(0)
+        draw_frame(canvas, row, column, garbage_frame, negative=True)
+        row += speed
+
+
 def draw(canvas):
     canvas.border()
     curses.curs_set(False)
@@ -119,6 +135,8 @@ def draw(canvas):
     rocket_frame_1 = load_frame_from_file('animations/rocket_frame_1.txt')
     rocket_frame_2 = load_frame_from_file('animations/rocket_frame_2.txt')
 
+    hubble_frame = load_frame_from_file('animations/hubble.txt')
+
     coroutines = [
         animate_spaceship(
             canvas,
@@ -126,6 +144,11 @@ def draw(canvas):
             column_center,
             (rocket_frame_1, rocket_frame_2)
         ),
+        fly_garbage(
+            canvas,
+            10,
+            hubble_frame
+        )
     ]
 
     for _ in range(100):
@@ -153,3 +176,4 @@ def draw(canvas):
 if __name__ == '__main__':
     curses.update_lines_cols()
     curses.wrapper(draw)
+
