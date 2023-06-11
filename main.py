@@ -120,6 +120,8 @@ async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
         row += speed
 
 
+async def fill_orbit_with_garbage():
+
 def draw(canvas):
     canvas.border()
     curses.curs_set(False)
