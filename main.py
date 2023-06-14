@@ -1,4 +1,3 @@
-import os
 import time
 import curses
 import asyncio
@@ -8,7 +7,7 @@ from pathlib import Path
 
 from curses_tools import draw_frame, read_controls, get_frame_size
 from physics import update_speed
-from obstacles import Obstacle, show_obstacles
+from obstacles import Obstacle
 from explosion import explode
 
 
@@ -17,8 +16,8 @@ GARBAGE_DIR = Path('frames/space_garbage')
 COROUTINES = []
 OBSTACLES = []
 OBSTACLES_IN_LAST_COLLISION = []
-STARS_AMOUNT = 100
-FIELD_INDENT = 1
+STARS_AMOUNT = 50
+START_ROW = START_COLUMN = 1
 GARBAGE_INDEX = 5
 PHRASES = {
     1957: "First Sputnik",
@@ -92,27 +91,36 @@ async def animate_spaceship(canvas, row, column, frames: tuple):
 
     left_frame_border = column - frame_width // 2
     bottom_frame_border = row - frame_height // 2
-    ship_indent = 1
     row_speed = column_speed = 0
 
-    rocket_animation_frames = cycle([rocket_frame_1, rocket_frame_1, rocket_frame_2, rocket_frame_2])
+    rocket_animation_frames = cycle(
+        [rocket_frame_1, rocket_frame_1, rocket_frame_2, rocket_frame_2]
+    )
 
     for frame in rocket_animation_frames:
         row_direction, column_direction, space_pressed = read_controls(canvas)
         left_frame_border += column_direction
         bottom_frame_border += row_direction
-        row_speed, column_speed = update_speed(row_speed, column_speed, row_direction, column_direction)
+        row_speed, column_speed = update_speed(
+            row_speed, column_speed,
+            row_direction, column_direction
+        )
 
         right_frame_border = left_frame_border + frame_width
         upper_frame_border = bottom_frame_border + frame_height
 
-        left_frame_border = min(right_frame_border,
-                                field_width - FIELD_INDENT - column_speed) - frame_width
-        bottom_frame_border = min(upper_frame_border,
-                                  field_height - FIELD_INDENT - row_speed) - frame_height
+        left_frame_border = min(
+            right_frame_border,
+            field_width - START_COLUMN - column_speed
+        ) - frame_width
 
-        left_frame_border = max(left_frame_border + column_speed, FIELD_INDENT)
-        bottom_frame_border = max(bottom_frame_border + row_speed, FIELD_INDENT)
+        bottom_frame_border = min(
+            upper_frame_border,
+            field_height - START_ROW - row_speed
+        ) - frame_height
+
+        left_frame_border = max(left_frame_border + column_speed, START_COLUMN)
+        bottom_frame_border = max(bottom_frame_border + row_speed, START_ROW)
 
         draw_frame(canvas, bottom_frame_border, left_frame_border, frame)
         await asyncio.sleep(0)
@@ -120,7 +128,8 @@ async def animate_spaceship(canvas, row, column, frames: tuple):
             canvas, bottom_frame_border,
             left_frame_border, frame, negative=True
         )
-        if YEAR >= 2020 and space_pressed:
+        if YEAR >= 1957 and space_pressed:
+            ship_indent = 1
             COROUTINES.append(
                 fire(
                     canvas,
@@ -184,7 +193,7 @@ async def fill_orbit_with_garbage(canvas, garbage_frames):
     while True:
         garbage_delay_tics = get_garbage_delay_tics()
         current_frame = random.choice(garbage_frames)
-        column = random.randint(FIELD_INDENT, field_width)
+        column = random.randint(START_COLUMN, field_width)
         if not garbage_delay_tics:
             await sleep(1)
             continue
@@ -202,10 +211,10 @@ async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
     left_frame_border = column - frame_width // 2
     right_frame_border = left_frame_border + frame_width
 
-    left_frame_border = min(right_frame_border, columns_number - FIELD_INDENT) - frame_width
-    left_frame_border = max(left_frame_border, FIELD_INDENT)
+    left_frame_border = min(right_frame_border, columns_number - START_COLUMN) - frame_width
+    left_frame_border = max(left_frame_border, START_COLUMN)
 
-    row = 0
+    row = START_ROW
     obstacle_rows, obstacle_columns = get_frame_size(garbage_frame)
     obstacle = Obstacle(row, left_frame_border, obstacle_rows, obstacle_columns)
     OBSTACLES.append(obstacle)
@@ -313,4 +322,3 @@ def draw(canvas):
 if __name__ == '__main__':
     curses.update_lines_cols()
     curses.wrapper(draw)
-
