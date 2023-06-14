@@ -20,6 +20,41 @@ OBSTACLES_IN_LAST_COLLISION = []
 STARS_AMOUNT = 100
 FIELD_INDENT = 1
 GARBAGE_INDEX = 5
+PHRASES = {
+    1957: "First Sputnik",
+    1961: "Gagarin flew!",
+    1969: "Armstrong got on the moon!",
+    1971: "First orbital space station Salute-1",
+    1981: "Flight of the Shuttle Columbia",
+    1998: 'ISS start building',
+    2011: 'Messenger launch to Mercury',
+    2020: "Take the plasma gun! Shoot the garbage!",
+}
+YEAR = 1957
+
+
+def get_garbage_delay_tics():
+    if YEAR < 1961:
+        return None
+    elif YEAR < 1969:
+        return 20
+    elif YEAR < 1981:
+        return 14
+    elif YEAR < 1995:
+        return 10
+    elif YEAR < 2010:
+        return 8
+    elif YEAR < 2020:
+        return 6
+    else:
+        return 2
+
+
+async def change_year():
+    global YEAR
+    while True:
+        await sleep(15)
+        YEAR += 1
 
 
 def load_frame_from_file(filename):
@@ -85,7 +120,7 @@ async def animate_spaceship(canvas, row, column, frames: tuple):
             canvas, bottom_frame_border,
             left_frame_border, frame, negative=True
         )
-        if space_pressed:
+        if YEAR >= 2020 and space_pressed:
             COROUTINES.append(
                 fire(
                     canvas,
@@ -147,10 +182,14 @@ async def fill_orbit_with_garbage(canvas, garbage_frames):
     _, field_width = canvas.getmaxyx()
 
     while True:
+        garbage_delay_tics = get_garbage_delay_tics()
         current_frame = random.choice(garbage_frames)
         column = random.randint(FIELD_INDENT, field_width)
+        if not garbage_delay_tics:
+            await sleep(1)
+            continue
+        await sleep(garbage_delay_tics)
         COROUTINES.append(fly_garbage(canvas, column, current_frame))
-        await sleep(GARBAGE_INDEX)
 
 
 async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
@@ -196,19 +235,34 @@ async def show_gameover(canvas):
 
     while True:
         draw_frame(canvas, row, left_frame_border, frame)
-        await asyncio.sleep(0)
+        await sleep(1)
+
+
+async def show_phrase(canvas):
+    rows_number, columns_number = canvas.getmaxyx()
+    columns_center = columns_number // 2
+    while True:
+        phrase = PHRASES.get(YEAR)
+        if phrase:
+            frame = f'{YEAR} - {phrase}'
+        else:
+            frame = str(YEAR)
+        frame_rows, frame_columns = get_frame_size(frame)
+        left_frame_border = columns_center - frame_columns // 2
+        draw_frame(canvas, 1, left_frame_border, frame)
+        await sleep(1)
+        draw_frame(canvas, 1, left_frame_border, frame, negative=True)
 
 
 def draw(canvas):
     global OBSTACLES_IN_LAST_COLLISION
     OBSTACLES_IN_LAST_COLLISION = []
 
-    canvas.border()
     curses.curs_set(False)
     canvas.nodelay(True)
 
     rows_number, columns_number = canvas.getmaxyx()
-    start_row, start_column = 1, 1
+    start_row, start_column = 2, 1
     end_row = rows_number - 2
     end_column = columns_number - 2
     row_center = end_row // 2
@@ -229,7 +283,9 @@ def draw(canvas):
                 column_center,
                 (rocket_frame_1, rocket_frame_2)
             ),
-            fill_orbit_with_garbage(canvas, garbage_frames)
+            fill_orbit_with_garbage(canvas, garbage_frames),
+            change_year(),
+            show_phrase(canvas)
         ]
     )
 
@@ -249,7 +305,7 @@ def draw(canvas):
                 coroutine.send(None)
             except StopIteration:
                 COROUTINES.remove(coroutine)
-
+        canvas.border()
         canvas.refresh()
         time.sleep(TIC_TIMEOUT)
 
