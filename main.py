@@ -9,6 +9,7 @@ from pathlib import Path
 from curses_tools import draw_frame, read_controls, get_frame_size
 from physics import update_speed
 from obstacles import Obstacle, show_obstacles
+from explosion import explode
 
 
 TIC_TIMEOUT = 0.1
@@ -18,6 +19,7 @@ OBSTACLES = []
 OBSTACLES_IN_LAST_COLLISION = []
 STARS_AMOUNT = 100
 FIELD_INDENT = 1
+GARBAGE_INDEX = 5
 
 
 def load_frame_from_file(filename):
@@ -134,14 +136,12 @@ async def fire(
 
 async def fill_orbit_with_garbage(canvas, garbage_frames):
     _, field_width = canvas.getmaxyx()
+
     while True:
         current_frame = random.choice(garbage_frames)
-        column = random.randint(
-            FIELD_INDENT,
-            field_width - FIELD_INDENT
-        )
+        column = random.randint(FIELD_INDENT, field_width)
         COROUTINES.append(fly_garbage(canvas, column, current_frame))
-        await sleep(1)
+        await sleep(GARBAGE_INDEX)
 
 
 async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
@@ -150,23 +150,25 @@ async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
 
     rows_number, columns_number = canvas.getmaxyx()
     _, frame_width = get_frame_size(garbage_frame)
+
     left_frame_border = column - frame_width // 2
     right_frame_border = left_frame_border + frame_width
 
-    column = min(right_frame_border, columns_number - FIELD_INDENT) - frame_width
-    column = max(column, FIELD_INDENT)
+    left_frame_border = min(right_frame_border, columns_number - FIELD_INDENT) - frame_width
+    left_frame_border = max(left_frame_border, FIELD_INDENT)
 
     row = 0
     obstacle_rows, obstacle_columns = get_frame_size(garbage_frame)
-    obstacle = Obstacle(row, column, obstacle_rows, obstacle_columns)
+    obstacle = Obstacle(row, left_frame_border, obstacle_rows, obstacle_columns)
     OBSTACLES.append(obstacle)
     try:
         while row < rows_number:
             if obstacle in OBSTACLES_IN_LAST_COLLISION:
+                await explode(canvas, row, left_frame_border)
                 return
-            draw_frame(canvas, row, column, garbage_frame)
+            draw_frame(canvas, row, left_frame_border, garbage_frame)
             await asyncio.sleep(0)
-            draw_frame(canvas, row, column, garbage_frame, negative=True)
+            draw_frame(canvas, row, left_frame_border, garbage_frame, negative=True)
             row += speed
             obstacle.row = row
     finally:
