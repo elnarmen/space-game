@@ -80,6 +80,11 @@ async def animate_spaceship(canvas, row, column, frames: tuple):
         bottom_frame_border = max(bottom_frame_border + row_speed, FIELD_INDENT)
 
         draw_frame(canvas, bottom_frame_border, left_frame_border, frame)
+        await asyncio.sleep(0)
+        draw_frame(
+            canvas, bottom_frame_border,
+            left_frame_border, frame, negative=True
+        )
         if space_pressed:
             COROUTINES.append(
                 fire(
@@ -89,12 +94,16 @@ async def animate_spaceship(canvas, row, column, frames: tuple):
                     rows_speed=-1
                 )
             )
-        await asyncio.sleep(0)
-        draw_frame(
-            canvas, bottom_frame_border,
-            left_frame_border, frame, negative=True
-        )
-
+        for obstacle in OBSTACLES:
+            if obstacle.has_collision(
+                    bottom_frame_border,
+                    left_frame_border,
+                    frame_height,
+                    frame_width
+            ):
+                COROUTINES.append(show_gameover(canvas))
+                await explode(canvas, upper_frame_border, left_frame_border)
+                return
 
 
 async def fire(
@@ -174,6 +183,20 @@ async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
     finally:
         if obstacle in OBSTACLES:
             OBSTACLES.remove(obstacle)
+
+
+async def show_gameover(canvas):
+    frame = load_frame_from_file(Path('frames', 'game_over.txt'))
+    _, frame_width = get_frame_size(frame)
+    rows_number, columns_number = canvas.getmaxyx()
+    columns_center = columns_number // 2
+
+    left_frame_border = columns_center - frame_width // 2
+    row = rows_number // 2
+
+    while True:
+        draw_frame(canvas, row, left_frame_border, frame)
+        await asyncio.sleep(0)
 
 
 def draw(canvas):
