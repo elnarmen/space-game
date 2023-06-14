@@ -7,6 +7,7 @@ from itertools import cycle
 from pathlib import Path
 
 from animation import draw_frame, read_controls, get_frame_size
+from physics import update_speed
 
 
 TIC_TIMEOUT = 0.1
@@ -59,6 +60,7 @@ async def animate_spaceship(canvas, row, column, frames: tuple):
     left_frame_border = column - frame_width // 2
     bottom_frame_border = row - frame_height // 2
     field_border = 1
+    row_speed = column_speed = 0
 
     rocket_animation_frames = cycle([rocket_frame_1, rocket_frame_1, rocket_frame_2, rocket_frame_2])
 
@@ -66,17 +68,18 @@ async def animate_spaceship(canvas, row, column, frames: tuple):
         row_direction, column_direction, _ = read_controls(canvas)
         left_frame_border += column_direction
         bottom_frame_border += row_direction
+        row_speed, column_speed = update_speed(row_speed, column_speed, row_direction, column_direction)
 
         right_frame_border = left_frame_border + frame_width
         upper_frame_border = bottom_frame_border + frame_height
 
         left_frame_border = min(right_frame_border,
-                                field_width - field_border) - frame_width
+                                field_width - field_border - column_speed) - frame_width
         bottom_frame_border = min(upper_frame_border,
-                                  field_height - field_border) - frame_height
+                                  field_height - field_border - row_speed) - frame_height
 
-        left_frame_border = max(left_frame_border, field_border)
-        bottom_frame_border = max(bottom_frame_border, field_border)
+        left_frame_border = max(left_frame_border + column_speed, field_border)
+        bottom_frame_border = max(bottom_frame_border + row_speed, field_border)
 
         draw_frame(canvas, bottom_frame_border, left_frame_border, frame)
         await asyncio.sleep(0)
@@ -161,7 +164,7 @@ def draw(canvas):
                 column_center,
                 (rocket_frame_1, rocket_frame_2)
             ),
-            fill_orbit_with_garbage(canvas, garbage_frames)
+            # fill_orbit_with_garbage(canvas, garbage_frames)
         ]
     )
 
