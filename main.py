@@ -128,7 +128,7 @@ async def animate_spaceship(canvas, row, column, frames: tuple):
             canvas, bottom_frame_border,
             left_frame_border, frame, negative=True
         )
-        if YEAR >= 1957 and space_pressed:
+        if YEAR >= 2020 and space_pressed:
             ship_indent = 1
             COROUTINES.append(
                 fire(
