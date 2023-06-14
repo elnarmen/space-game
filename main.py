@@ -57,15 +57,17 @@ async def animate_spaceship(canvas, row, column, frames: tuple):
     field_height, field_width = canvas.getmaxyx()
     rocket_frame_1, rocket_frame_2 = frames
     frame_height, frame_width = get_frame_size(rocket_frame_1)
+
     left_frame_border = column - frame_width // 2
     bottom_frame_border = row - frame_height // 2
-    field_border = 1
+    field_indent = 1
+    ship_indent = 1
     row_speed = column_speed = 0
 
     rocket_animation_frames = cycle([rocket_frame_1, rocket_frame_1, rocket_frame_2, rocket_frame_2])
 
     for frame in rocket_animation_frames:
-        row_direction, column_direction, _ = read_controls(canvas)
+        row_direction, column_direction, space_pressed = read_controls(canvas)
         left_frame_border += column_direction
         bottom_frame_border += row_direction
         row_speed, column_speed = update_speed(row_speed, column_speed, row_direction, column_direction)
@@ -74,14 +76,25 @@ async def animate_spaceship(canvas, row, column, frames: tuple):
         upper_frame_border = bottom_frame_border + frame_height
 
         left_frame_border = min(right_frame_border,
-                                field_width - field_border - column_speed) - frame_width
+                                field_width - field_indent - column_speed) - frame_width
         bottom_frame_border = min(upper_frame_border,
-                                  field_height - field_border - row_speed) - frame_height
+                                  field_height - field_indent - row_speed) - frame_height
 
-        left_frame_border = max(left_frame_border + column_speed, field_border)
-        bottom_frame_border = max(bottom_frame_border + row_speed, field_border)
+        left_frame_border = max(left_frame_border + column_speed, field_indent)
+        bottom_frame_border = max(bottom_frame_border + row_speed, field_indent)
 
         draw_frame(canvas, bottom_frame_border, left_frame_border, frame)
+
+        if space_pressed:
+            COROUTINES.append(
+                fire(
+                    canvas,
+                    bottom_frame_border - ship_indent,
+                    left_frame_border + frame_width // 2,
+                    rows_speed=-1
+                )
+            )
+
         await asyncio.sleep(0)
         draw_frame(
             canvas, bottom_frame_border,
@@ -164,7 +177,7 @@ def draw(canvas):
                 column_center,
                 (rocket_frame_1, rocket_frame_2)
             ),
-            # fill_orbit_with_garbage(canvas, garbage_frames)
+            fill_orbit_with_garbage(canvas, garbage_frames)
         ]
     )
 
