@@ -15,7 +15,9 @@ TIC_TIMEOUT = 0.1
 GARBAGE_DIR = Path('frames/space_garbage')
 COROUTINES = []
 OBSTACLES = []
+OBSTACLES_IN_LAST_COLLISION = []
 STARS_AMOUNT = 100
+FIELD_INDENT = 1
 
 
 def load_frame_from_file(filename):
@@ -46,15 +48,6 @@ async def blink(canvas, row, column, symbol='*', displacement=10):
         await sleep(3)
 
 
-async def fill_orbit_with_garbage(canvas, garbage_frames):
-    _, field_width = canvas.getmaxyx()
-    while True:
-        current_frame = random.choice(garbage_frames)
-        column = random.randint(1, field_width)
-        COROUTINES.append(fly_garbage(canvas, column, current_frame))
-        await sleep(10)
-
-
 async def animate_spaceship(canvas, row, column, frames: tuple):
     field_height, field_width = canvas.getmaxyx()
     rocket_frame_1, rocket_frame_2 = frames
@@ -62,7 +55,6 @@ async def animate_spaceship(canvas, row, column, frames: tuple):
 
     left_frame_border = column - frame_width // 2
     bottom_frame_border = row - frame_height // 2
-    field_indent = 1
     ship_indent = 1
     row_speed = column_speed = 0
 
@@ -78,12 +70,12 @@ async def animate_spaceship(canvas, row, column, frames: tuple):
         upper_frame_border = bottom_frame_border + frame_height
 
         left_frame_border = min(right_frame_border,
-                                field_width - field_indent - column_speed) - frame_width
+                                field_width - FIELD_INDENT - column_speed) - frame_width
         bottom_frame_border = min(upper_frame_border,
-                                  field_height - field_indent - row_speed) - frame_height
+                                  field_height - FIELD_INDENT - row_speed) - frame_height
 
-        left_frame_border = max(left_frame_border + column_speed, field_indent)
-        bottom_frame_border = max(bottom_frame_border + row_speed, field_indent)
+        left_frame_border = max(left_frame_border + column_speed, FIELD_INDENT)
+        bottom_frame_border = max(bottom_frame_border + row_speed, FIELD_INDENT)
 
         draw_frame(canvas, bottom_frame_border, left_frame_border, frame)
         if space_pressed:
@@ -107,7 +99,7 @@ async def fire(
         canvas, start_row, start_column, rows_speed=-0.3, columns_speed=0
 ):
     """Display animation of gun shot, direction and speed can be specified."""
-
+    global OBSTACLES
     row, column = start_row, start_column
 
     canvas.addstr(round(row), round(column), '*')
@@ -128,6 +120,11 @@ async def fire(
     curses.beep()
 
     while 0 < row < max_row and 0 < column < max_column:
+        for obstacle in OBSTACLES:
+            if obstacle.has_collision(round(row), round(column)):
+                OBSTACLES_IN_LAST_COLLISION.append(obstacle)
+                OBSTACLES.remove(obstacle)
+                return
         canvas.addstr(round(row), round(column), symbol)
         await asyncio.sleep(0)
         canvas.addstr(round(row), round(column), ' ')
@@ -135,14 +132,29 @@ async def fire(
         column += columns_speed
 
 
+async def fill_orbit_with_garbage(canvas, garbage_frames):
+    _, field_width = canvas.getmaxyx()
+    while True:
+        current_frame = random.choice(garbage_frames)
+        column = random.randint(
+            FIELD_INDENT,
+            field_width - FIELD_INDENT
+        )
+        COROUTINES.append(fly_garbage(canvas, column, current_frame))
+        await sleep(1)
+
+
 async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
     """Animate garbage, flying from top to bottom. Сolumn position will stay same, as specified on start."""
     global OBSTACLES
 
     rows_number, columns_number = canvas.getmaxyx()
+    _, frame_width = get_frame_size(garbage_frame)
+    left_frame_border = column - frame_width // 2
+    right_frame_border = left_frame_border + frame_width
 
-    column = max(column, 0)
-    column = min(column, columns_number - 1)
+    column = min(right_frame_border, columns_number - FIELD_INDENT) - frame_width
+    column = max(column, FIELD_INDENT)
 
     row = 0
     obstacle_rows, obstacle_columns = get_frame_size(garbage_frame)
@@ -150,17 +162,22 @@ async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
     OBSTACLES.append(obstacle)
     try:
         while row < rows_number:
+            if obstacle in OBSTACLES_IN_LAST_COLLISION:
+                return
             draw_frame(canvas, row, column, garbage_frame)
             await asyncio.sleep(0)
             draw_frame(canvas, row, column, garbage_frame, negative=True)
             row += speed
             obstacle.row = row
     finally:
-        if obstacle.row > rows_number:
+        if obstacle in OBSTACLES:
             OBSTACLES.remove(obstacle)
 
 
 def draw(canvas):
+    global OBSTACLES_IN_LAST_COLLISION
+    OBSTACLES_IN_LAST_COLLISION = []
+
     canvas.border()
     curses.curs_set(False)
     canvas.nodelay(True)
