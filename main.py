@@ -86,7 +86,7 @@ async def blink(canvas, row, column, symbol='*', displacement=10):
 
 
 async def animate_spaceship(canvas, row, column, frames: tuple):
-    field_height, field_width = canvas.getmaxyx()
+    rows_number, columns_number = canvas.getmaxyx()
     rocket_frame_1, rocket_frame_2 = frames
     frame_height, frame_width = get_frame_size(rocket_frame_1)
 
@@ -112,12 +112,12 @@ async def animate_spaceship(canvas, row, column, frames: tuple):
 
         left_frame_border = min(
             right_frame_border,
-            field_width - START_COLUMN - column_speed
+            columns_number - START_COLUMN - column_speed
         ) - frame_width
 
         bottom_frame_border = min(
             upper_frame_border,
-            field_height - START_ROW - row_speed
+            rows_number - START_ROW - row_speed
         ) - frame_height
 
         left_frame_border = max(left_frame_border + column_speed, START_COLUMN)
@@ -170,8 +170,8 @@ async def fire(
 
     symbol = '-' if columns_speed else '|'
 
-    rows, columns = canvas.getmaxyx()
-    max_row, max_column = rows - 1, columns - 1
+    rows_number, columns_number = canvas.getmaxyx()
+    max_row, max_column = rows_number - 1, columns_number - 1
 
     curses.beep()
 
@@ -189,12 +189,12 @@ async def fire(
 
 
 async def fill_orbit_with_garbage(canvas, garbage_frames):
-    _, field_width = canvas.getmaxyx()
+    _, columns_number = canvas.getmaxyx() #  Return a tuple (y, x) of the height and width of the window.
 
     while True:
         garbage_delay_tics = get_garbage_delay_tics()
         current_frame = random.choice(garbage_frames)
-        column = random.randint(START_COLUMN, field_width)
+        column = random.randint(START_COLUMN, columns_number)
         if not garbage_delay_tics:
             await sleep(1)
             continue
